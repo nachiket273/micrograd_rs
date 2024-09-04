@@ -1,21 +1,19 @@
 use std::{
-    borrow::{Borrow, BorrowMut},
-    cell::RefCell,
     fmt::Debug,
     hash::Hash,
-    ops::{Add, Deref},
-    rc::Rc
+    ops::{Add, Mul, Sub}
 };
 use uuid::Uuid;
 
-// Basic Implementation of struct Value
-#[derive(Debug)]
+// Struct to hold data, gradient, operation,
+// backward function and previous node.
+#[derive(Clone)]
 pub struct Value {
     pub data: f64,
     pub grad: f64,
     pub operation: String,
-    pub backward: Option<fn(val: &Value)>,
-    pub previous: Vec<Val>,
+    pub backward: Option<fn(val: &mut Value)>,
+    pub previous: Vec<Value>,
     pub id: Uuid
 }
 
@@ -32,71 +30,82 @@ impl Value {
     }
 }
 
-#[derive(Clone)]
-pub struct Val(Rc<RefCell<Value>>);
-
-impl Deref for Val {
-    type Target = Rc<RefCell<Value>>;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl PartialEq for Val {
+impl PartialEq for Value {
     fn eq(&self, other: &Self) -> bool {
-        self.borrow().id == other.borrow().id
+        self.id == other.id
     }
 }
 
-impl Eq for Val{}
+impl Eq for Value{}
 
-impl Hash for Val {
+impl Hash for Value {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.borrow().id.hash(state)
+        self.id.hash(state)
     }
 }
 
-impl Debug for Val {
+impl Debug for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Value")
-        .field("data", &self.borrow().data)
-        .field("grad", &self.borrow().grad)
-        .field("operation", &self.borrow().operation)
+        .field("data", &self.data)
+        .field("grad", &self.grad)
+        .field("operation", &self.operation)
         .finish()
     }
 }
 
 
-impl Val {
-    fn new(value: Value) -> Val {
-        Val(Rc::new(RefCell::new(value)))
-    }
-}
-
-impl<T: Into<f64>> From<T> for Val {
-    fn from(t: T) -> Val {
-        Val::new(Value::new(t.into()))
-    }
-}
-
 // Implementation of Add, Subtract, Multiply and Divide
-impl Add for Val {
+impl Add for Value {
     type Output = Self;
 
     fn add(self, other: Self) -> Self {
-        let mut add_val = Value::new(self.borrow().data + other.borrow().data);
+        let mut add_val = Value::new(self.data + other.data);
         add_val.operation = String::from("+");
         add_val.previous = vec![self, other];
-        add_val.backward = Some(|val: &Value| {
-            val.previous[0].borrow_mut().grad += val.grad;
-            val.previous[1].borrow_mut().grad += val.grad;
+        add_val.backward = Some(|val: &mut Value| {
+            val.previous[0].grad += val.grad;
+            val.previous[1].grad += val.grad;
         });
-        Val::new(add_val)
+        return add_val;
+    }
+}
+
+impl Sub for Value {
+    type Output = Self;
+
+    fn sub(self, other: Self) -> Self {
+        let mut sub_val = Value::new(self.data - other.data);
+        sub_val.operation = String::from("-");
+        sub_val.previous = vec![self, other];
+        sub_val.backward = Some(|val: &mut Value| {
+            val.previous[0].grad += val.grad;
+            val.previous[1].grad -= val.grad;
+        });
+        return sub_val;
+    }
+}
+
+impl Mul for Value {
+    type Output = Self;
+
+    fn mul(self, other: Self) -> Self {
+        let mut mul_val = Value::new(self.data * other.data);
+        mul_val.operation = String::from("*");
+        mul_val.previous = vec![self, other];
+        mul_val.backward = Some(|val: &mut Value| {
+            val.previous[0].grad += val.grad * val.previous[1].grad;
+            val.previous[1].grad += val.grad * val.previous[0].grad;
+        });
+        return mul_val;
     }
 }
 
 fn main() {
-    let val = Val::from(10.0);
-    let val2 = Val::clone(&val);
-    println!("Current struct: {:#?}", val);
+    let val = Value::new(10.0);
+    let val2 = Value::clone(&val);
+    println!("Value1: {:#?}", val);
+    println!("Value2: {:#?}", val2);
+    let val3 = val + val2;
+    println!("Addition Value: {:#?}", val3);
 }  
