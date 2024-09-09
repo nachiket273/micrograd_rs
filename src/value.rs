@@ -1,7 +1,9 @@
 use std::{
+    collections::HashSet,
+    env,
     fmt::Debug,
     hash::Hash,
-    ops::{Add, Mul, Sub, Div}
+    ops::{Add, Div, Mul, Sub}
 };
 use uuid::Uuid;
 
@@ -30,8 +32,35 @@ impl Value {
     }
 
     // backwards
-    pub fn backward(&self) {
-        
+    pub fn backward(&mut self) {
+        let mut topo = self.build_topo();
+        topo.reverse();
+        println!("topo: {:#?}", topo);
+        self.grad = 1.0;
+        for node in topo.iter_mut() {
+            println!("Node: {:#?}", node);
+            if let Some(val) = node.backward {
+                val(node);
+            }
+        }
+    }
+
+    // Build topology
+    fn build_topo(&self) -> Vec<Value> {
+        let mut topo : Vec<Value> = vec![];
+        let mut visited : HashSet<Value> = HashSet::new();
+        self._build_topology(&mut visited, &mut topo);
+        return topo;
+    }
+
+    fn _build_topology(&self, visited: &mut HashSet<Value>, topo: &mut Vec<Value>) {
+        if !visited.contains(self) {
+            visited.insert(self.clone());
+            self.previous.iter().for_each(|child| {
+                child._build_topology(visited, topo);
+            });
+            topo.push(self.clone());
+        }
     }
 
     // Implementation of ReLU, Pow and tanh.
@@ -87,9 +116,11 @@ impl Hash for Value {
 impl Debug for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Value")
-        .field("data", &self.data)
-        .field("grad", &self.grad)
-        .field("operation", &self.operation)
+        .field("Id", &self.id)
+        .field("Data", &self.data)
+        .field("Grad", &self.grad)
+        .field("Operation", &self.operation)
+        .field("Previous", &self.previous)
         .finish()
     }
 }
@@ -106,6 +137,7 @@ impl Add for Value {
         add_val.backward = Some(|val: &mut Value| {
             val.previous[0].grad += val.grad;
             val.previous[1].grad += val.grad;
+            println!("backwards:: {:#?}", val);
         });
         return add_val;
     }
@@ -158,10 +190,17 @@ impl Div for Value {
 
 
 fn main() {
+    env::set_var("RUST_BACKTRACE", "1");
     let val = Value::new(10.0);
-    let val2 = Value::clone(&val);
+    let val2 = Value::new(5.0);
+    println!("Forward Pass:");
     println!("Value1: {:#?}", val);
     println!("Value2: {:#?}", val2);
-    let val3 = val + val2;
+    let mut val3 = val.clone() + val2.clone();
     println!("Addition Value: {:#?}", val3);
+    val3.backward();
+    println!("After backward pass: ");
+    println!("Value1: {:#?}", val);
+    println!("Value2: {:#?}", val2);
+    println!("Addition: {:#?}", val3);
 }  
