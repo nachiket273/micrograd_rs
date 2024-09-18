@@ -4,8 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "Value"
-path = "src/value.rs"
+name = "Main"
+path = "src/main.rs"
 
 [dependencies]
+rand = "0.8.5"
 uuid = {version = "1.10.0", features = ["v4", "fast-rng", "macro-diagnostics"]}

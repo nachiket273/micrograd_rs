@@ -1,3 +1,4 @@
+use core::f64;
 use std::{
     cell::RefCell,
     collections::HashSet,
@@ -68,6 +69,12 @@ impl Eq for Val{}
 impl Hash for Val {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.borrow().id.hash(state)
+    }
+}
+
+impl<T: Into<f64>> From<T> for Val {
+    fn from(t: T) -> Val {
+        Val::new(Value::new(t.into()))
     }
 }
 
@@ -219,19 +226,3 @@ impl Div for Val {
         return Val::new(div_val);
     }
 }
-
-
-fn main() {
-    let val = Val::new(Value::new(10.0));
-    let val2 = Val::new(Value::new(5.0));
-    println!("Forward: ");
-    println!("Value1: {:#?}", val);
-    println!("Value2: {:#?}", val2);
-    let val3 = val.clone() + val2.clone();
-    println!("Addition Value: {:#?}", val3);
-    println!("Backward: ");
-    val3.backward();
-    println!("Addition Value: {:#?}", val3);
-    println!("Value1: {:#?}", val);
-    println!("Value2: {:#?}", val2);
-}  

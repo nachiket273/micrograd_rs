@@ -1,18 +1,18 @@
-use crate::Val;
+use crate::{value::Value, Val};
 
 pub struct Neuron {
     weights: Vec<Val>,
-    bias: val,
+    bias: Val,
     use_relu: bool
 }
 
 impl Neuron {
     pub fn new(in_ch: u32, use_relu: bool) -> Self {
         let weights: Vec<Val> = (0..in_ch)
-        .map(|_| Val::new(Value::new(rand::random::<f64>() * 2.0 - 1.0)))
+        .map(|_| Val::from(rand::random::<f64>() * 2.0 - 1.0))
         .collect();
 
-        let bias = rand::random::<f64>() * 2.0 - 1.0;
+        let bias = Val::from(rand::random::<f64>() * 2.0 - 1.0);
 
         Neuron {
             weights,
@@ -22,15 +22,21 @@ impl Neuron {
     }
 
     pub fn forward(&self, x: Vec<Val>) -> Val {
-        let sum: Val = self.weights.iter()
-        .zip(x.iter())
-        .map(|weight, ip| {
-            let part_sum = weight.clone() * ip.clone();
-            part_sum
-        })
-        .sum();
+        let mut sum: f64 = 0.0;
 
-        let ret = sum + self.bias.clone();
+        for (weight, ip) in self.weights.iter().zip(x.iter()) {
+            sum += weight.borrow_mut().data * ip.borrow_mut().data
+        }
+
+        let mut new_val = Val::from(sum);
+        new_val.borrow_mut().operation = String::from("+");
+        new_val.borrow_mut().backward = Some(|val: &Value |{
+            for v in val.previous.iter() {
+                v.borrow_mut().grad += val.grad;
+            }
+        });
+
+        let mut ret = new_val + self.bias.clone();
 
         if self.use_relu {
             ret = ret.relu();
@@ -43,6 +49,12 @@ impl Neuron {
         let mut params = self.weights.clone();
         params.push(self.bias.clone());
         params
+    }
+
+    pub fn zero_grad(&self) {
+        for param in self.parameters().iter() {
+            param.borrow_mut().grad = 0.0;
+        }
     }
 }
 
@@ -70,6 +82,12 @@ impl Layer {
         .flat_map(|neuron| neuron.parameters())
         .collect()
     }
+
+    pub fn zero_grad(&self) {
+        for param in self.parameters().iter() {
+            param.borrow_mut().grad = 0.0;
+        }
+    }
 }
 
 pub struct MLP {
@@ -83,7 +101,7 @@ impl MLP {
         let mut in_ch_mut = in_ch;
 
         for out in out_ch {
-            layers.push(Vec::new(in_ch_mut, out));
+            layers.push(Layer::new(in_ch_mut, out));
             in_ch_mut = out;
         }
 
@@ -105,7 +123,7 @@ impl MLP {
         .collect()
     }
 
-    pub fn zero_grad(&self) -> None {
+    pub fn zero_grad(&self) {
         for param in self.parameters().iter() {
             param.borrow_mut().grad = 0.0;
         }
