@@ -1,11 +1,6 @@
 use core::f64;
 use std::{
-    cell::RefCell,
-    collections::HashSet,
-    fmt::Debug,
-    hash::Hash,
-    ops::{Add, Deref, Div, Mul, Sub},
-    rc::Rc
+    cell::RefCell, collections::HashSet, fmt::Debug, hash::Hash, iter::Sum, ops::{Add, Deref, Div, Mul, Sub}, rc::Rc
 };
 use uuid::Uuid;
 
@@ -147,7 +142,8 @@ impl Val {
         pow_val.previous = vec![self.clone(), Val::new(Value::new(n))];
         pow_val.backward = Some(|val: &Value|{
             let pow = val.previous[1].borrow().data;
-            val.previous[0].borrow_mut().grad += pow * val.grad * val.previous[0].borrow().data.powf(pow-1.0);
+            let base = val.previous[0].borrow().data;
+            val.previous[0].borrow_mut().grad += pow * val.grad * base.powf(pow-1.0);
         });
         return Val::new(pow_val);
     }
@@ -224,5 +220,27 @@ impl Div for Val {
             val.previous[1].borrow_mut().grad -= val.grad * val.previous[0].borrow().data / val.previous[1].borrow().data.powi(2);
         });
         return Val::new(div_val);
+    }
+}
+
+impl Sum for Val {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        let mut new_val = Value::new(0.0);
+
+        let sum = iter
+        .map(|val| {
+            new_val.previous.push(val.clone());
+            val.borrow().data
+        }).sum();
+
+        new_val.data = sum;
+        new_val.operation = String::from("+");
+        new_val.backward = Some(|val: &Value| {
+            for v in val.previous.iter() {
+                v.borrow_mut().grad += val.grad;
+            }
+        });
+
+        Val::new(new_val)
     }
 }

@@ -1,13 +1,15 @@
-use crate::{value::Value, Val};
+use crate::Val;
+
 
 pub struct Neuron {
     weights: Vec<Val>,
     bias: Val,
-    use_relu: bool
+    use_relu: bool,
+    use_tanh: bool
 }
 
 impl Neuron {
-    pub fn new(in_ch: u32, use_relu: bool) -> Self {
+    pub fn new(in_ch: u32, use_relu: bool, use_tanh: bool) -> Self {
         let weights: Vec<Val> = (0..in_ch)
         .map(|_| Val::from(rand::random::<f64>() * 2.0 - 1.0))
         .collect();
@@ -17,29 +19,27 @@ impl Neuron {
         Neuron {
             weights,
             bias,
-            use_relu
+            use_relu,
+            use_tanh
         }
     }
 
     pub fn forward(&self, x: Vec<Val>) -> Val {
-        let mut sum: f64 = 0.0;
+        let sum: Val = self.weights
+        .iter()
+        .zip(x.iter())
+        .map(|(weight, input)| {
+            weight.clone() * input.clone()
+        }).sum();
 
-        for (weight, ip) in self.weights.iter().zip(x.iter()) {
-            sum += weight.borrow_mut().data * ip.borrow_mut().data
-        }
-
-        let mut new_val = Val::from(sum);
-        new_val.borrow_mut().operation = String::from("+");
-        new_val.borrow_mut().backward = Some(|val: &Value |{
-            for v in val.previous.iter() {
-                v.borrow_mut().grad += val.grad;
-            }
-        });
-
-        let mut ret = new_val + self.bias.clone();
+        let mut ret = sum + self.bias.clone();
 
         if self.use_relu {
             ret = ret.relu();
+        }
+
+        if self.use_tanh {
+            ret = ret.tanh();
         }
 
         ret
@@ -63,10 +63,14 @@ pub struct Layer {
 }
 
 impl Layer {
-    pub fn new(in_ch: u32, out_ch: u32) -> Self {
-        (0..out_ch)
-        .map(|_| Neuron::new(in_ch))
-        .collect()      
+    pub fn new(in_ch: u32, out_ch: u32, use_relu: bool, use_tanh: bool) -> Self {
+        let neurons = (0..out_ch)
+        .map(|_| Neuron::new(in_ch, use_relu, use_tanh))
+        .collect();
+
+        Layer {
+            neurons
+        }        
     }
 
     pub fn forward(&self, x: Vec<Val>) -> Vec<Val> {
@@ -95,14 +99,19 @@ pub struct MLP {
 }
 
 impl MLP {
-    pub fn new(in_ch: u32, out_ch: Vec<u32>) -> Self {
+    pub fn new(in_ch: u32, out_ch: Vec<u32>, use_relu: bool) -> Self {
         let mut layers = Vec::new();
-
         let mut in_ch_mut = in_ch;
+        let sz = out_ch.len();
 
-        for out in out_ch {
-            layers.push(Layer::new(in_ch_mut, out));
-            in_ch_mut = out;
+        for i in 0..sz {
+            if i == sz-1 {
+                layers.push(Layer::new(in_ch_mut, out_ch[i], false, true));
+            }
+            else {
+                layers.push(Layer::new(in_ch_mut, out_ch[i], use_relu, false));
+            }
+            in_ch_mut = out_ch[i];
         }
 
         MLP {layers}
