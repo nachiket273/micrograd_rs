@@ -1,4 +1,9 @@
 # micrograd_rs
+[![Crate](https://img.shields.io/crates/v/micrograd_rs_nt.svg)](https://crates.io/crates/micrograd_rs_nt)
+
+
+<br>
+
 A Rust Beginner's implementation of [Andrej karpathy's micrograd](https://github.com/karpathy/micrograd). <br>
 Here's [Link](https://www.youtube.com/watch?v=VMj-3S1tku0) to the YouTube video. <br>
 Also thanks to [micrograd-rust](https://github.com/sloganking/micrograd-rust) for reference implementation in rust.
