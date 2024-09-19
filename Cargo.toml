@@ -1,5 +1,5 @@
 [package]
-name = "micrograd_rs"
+name = "micrograd_rs_nt"
 version = "0.1.0"
 edition = "2021"
 description = "Rust implementation of Andrej Karpathy's micrograd scalar-valued engine."
