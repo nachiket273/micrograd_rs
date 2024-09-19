@@ -2,6 +2,10 @@
 name = "micrograd_rs"
 version = "0.1.0"
 edition = "2021"
+description = "Rust implementation of Andrej Karpathy's micrograd scalar-valued engine."
+authors = ["Nachiket Tanksale <nachiket.tanksale@gmail.com>"]
+license = "MIT"
+repository = "https://github.com/nachiket273/micrograd_rs"
 
 [[bin]]
 name = "Main"
